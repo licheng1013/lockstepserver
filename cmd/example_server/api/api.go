@@ -3,17 +3,11 @@ package api
 import (
 	_ "embed"
 	"fmt"
-	"html/template"
+	"github.com/byebyebruce/lockstepserver/logic"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	_ "net/http/pprof"
-	"strconv"
-	"strings"
-
-	"github.com/byebyebruce/lockstepserver/logic"
 )
-
-//go:embed index.html
-var index string
 
 // WebAPI http api
 type WebAPI struct {
@@ -22,70 +16,34 @@ type WebAPI struct {
 
 // NewWebAPI 构造
 func NewWebAPI(addr string, m *logic.RoomManager) *WebAPI {
-	r := &WebAPI{
+	api := &WebAPI{
 		m: m,
 	}
 
-	http.HandleFunc("/", r.index)
-	http.HandleFunc("/create", r.createRoom)
-
+	r := gin.New()
+	r.GET("/create", api.CreateRoom)
 	go func() {
-		fmt.Println("web api listen on", addr)
-		e := http.ListenAndServe(addr, nil)
-		if nil != e {
-			panic(e)
-		}
-	}()
-
-	return r
+		_ = r.Run(addr)
+	}() // listen and serve on 0.0.0.0:8080
+	return api
 }
 
-func (h *WebAPI) index(w http.ResponseWriter, r *http.Request) {
+type RoomInfo struct {
+	Room   uint64   `json:"room" form:"room"`
+	Member []uint64 `json:"member" form:"member"`
+}
 
-	query := r.URL.Query()
-	if 0 == len(query) {
-		t, err := template.New("test").Parse(index)
-		if err != nil {
-			w.Write([]byte("error"))
-		} else {
-			t.Execute(w, nil)
-		}
+func (h *WebAPI) CreateRoom(ctx *gin.Context) {
+	var roomInfo RoomInfo
+	err := ctx.Bind(&roomInfo)
+	fmt.Println("roomInfo=", roomInfo, "err=", err)
+
+	room, err := h.m.CreateRoom(roomInfo.Room, 0, roomInfo.Member, 0, "test")
+	if nil != err {
+		ctx.JSON(http.StatusOK, gin.H{"error": err.Error()})
 		return
 	}
-}
-
-func (h *WebAPI) createRoom(w http.ResponseWriter, r *http.Request) {
-
-	ret := "error"
-
-	defer func() {
-		w.Write([]byte(ret))
-	}()
-
-	query := r.URL.Query()
-
-	roomStr := query.Get("room")
-	roomID, _ := strconv.ParseUint(roomStr, 10, 64)
-
-	ps := make([]uint64, 0, 10)
-
-	members := query.Get("member")
-	if len(members) > 0 {
-
-		a := strings.Split(members, ",")
-
-		for _, v := range a {
-			id, _ := strconv.ParseUint(v, 10, 64)
-			ps = append(ps, id)
-		}
-
-	}
-
-	room, err := h.m.CreateRoom(roomID, 0, ps, 0, "test")
-	if nil != err {
-		ret = err.Error()
-	} else {
-		ret = fmt.Sprintf("room.ID=[%d] room.Secret=[%s] room.Time=[%d], room.Member=[%v]", room.ID(), room.SecretKey(), room.TimeStamp(), members)
-	}
-
+	ret := fmt.Sprintf("room.ID=[%d] room.Secret=[%s] room.Time=[%d], room.Member=[%v]",
+		room.ID(), room.SecretKey(), room.TimeStamp(), roomInfo.Member)
+	ctx.JSON(http.StatusOK, gin.H{"room": ret})
 }

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"log"
 	"time"
 
 	"github.com/byebyebruce/lockstepserver/pb"
@@ -230,11 +231,11 @@ func (g *Game) Tick(now int64) bool {
 				// 大于最大准备时间，只要有在线的，就强制开始
 				g.doStart()
 				g.State = k_Gaming
-				l4g.Warn("[game(%d)] force start game because ready state is timeout ", g.id)
+				log.Printf("强制开始游戏，有人准备超时了 %v \n", g.id)
 			} else {
 				// 全都没连进来，直接结束
 				g.State = k_Over
-				l4g.Error("[game(%d)] game over!! nobody ready", g.id)
+				log.Printf("游戏结束，没有人准备 %v \n", g.id)
 			}
 		}
 

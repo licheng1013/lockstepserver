@@ -33,11 +33,9 @@ type RoomInfo struct {
 	Member []uint64 `json:"member" form:"member"`
 }
 
+// CreateRoom 创建房间,默认房间id为1，房间成员为1,2
 func (h *WebAPI) CreateRoom(ctx *gin.Context) {
-	var roomInfo RoomInfo
-	err := ctx.Bind(&roomInfo)
-	fmt.Println("roomInfo=", roomInfo, "err=", err)
-
+	roomInfo := RoomInfo{Room: 1, Member: []uint64{1, 2}}
 	room, err := h.m.CreateRoom(roomInfo.Room, 0, roomInfo.Member, 0, "test")
 	if nil != err {
 		ctx.JSON(http.StatusOK, gin.H{"error": err.Error()})

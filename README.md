@@ -1,3 +1,7 @@
+
+# 原作者仓库地址
+- [https://github.com/byebyebruce/lockstepserver](https://github.com/byebyebruce/lockstepserver)
+
 # Lock Step Server
 
 [![GoDoc](https://godoc.org/github.com/byebyebruce/lockstepserver?status.png)](https://godoc.org/github.com/byebyebruce/lockstepserver)

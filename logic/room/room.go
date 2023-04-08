@@ -1,6 +1,7 @@
 package room
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -185,25 +186,26 @@ LOOP:
 	for {
 		select {
 		case <-r.exitChan:
-			l4g.Error("[room(%d)] force exit", r.roomID)
+			l4g.Error("[room(%d)] 强制退出", r.roomID)
 			return
 		case <-timeoutTimer.C:
-			l4g.Error("[room(%d)] time out", r.roomID)
+			l4g.Error("[room(%d)] 房间超时", r.roomID)
 			break LOOP
 		case msg := <-r.msgQ:
 			r.game.ProcessMsg(msg.id, msg.msg.(*pb_packet.Packet))
 		case <-tickerTick.C:
+			// 传入当前时间进去, 如果返回false, 说明游戏结束
 			if !r.game.Tick(time.Now().Unix()) {
-				l4g.Info("[room(%d)] tick over", r.roomID)
+				l4g.Info("[room(%d)] 游戏结束", r.roomID)
 				break LOOP
 			}
 		case c := <-r.inChan:
 			id, ok := c.GetExtraData().(uint64)
 			if ok {
 				if r.game.JoinGame(id, c) {
-					l4g.Info("[room(%d)] player[%d] join room ok", r.roomID, id)
+					log.Println("加入游戏成功", r.roomID, "-", id)
 				} else {
-					l4g.Error("[room(%d)] player[%d] join room failed", r.roomID, id)
+					log.Println("加入游戏失败", r.roomID, "-", id)
 					c.Close()
 				}
 			} else {
@@ -213,10 +215,11 @@ LOOP:
 
 		case c := <-r.outChan:
 			if id, ok := c.GetExtraData().(uint64); ok {
-				r.game.LeaveGame(id)
+				r.game.LeaveGame(id) // 断开游戏
+				log.Println("离开游戏", id)
 			} else {
 				c.Close()
-				l4g.Error("[room(%d)] outChan don't have id", r.roomID)
+				l4g.Error("[room(%d)] outChan没有身份证", r.roomID)
 			}
 		}
 	}

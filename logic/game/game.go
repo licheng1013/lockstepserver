@@ -130,11 +130,12 @@ func (g *Game) ProcessMsg(id uint64, msg *pb_packet.Packet) {
 
 	player, ok := g.players[id]
 	if !ok {
-		l4g.Error("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
+		//l4g.Error("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
+		log.Println("玩家不在游戏中",g.id, player.id, msg.GetMessageID())
 		return
 	}
-	l4g.Info("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
-
+	//l4g.Info("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
+	log.Println("处理玩家消息",g.id, player.id, msg.GetMessageID())
 	msgID := pb.ID(msg.GetMessageID())
 
 	switch msgID {
@@ -181,9 +182,11 @@ func (g *Game) ProcessMsg(id uint64, msg *pb_packet.Packet) {
 			g.doReady(player)
 			// 重连进来 TODO 对重连进行检查，重连比较耗费
 			g.doReconnect(player)
-			l4g.Warn("[game(%d)] doReconnect [%d]", g.id, player.id)
+			//l4g.Warn("[game(%d)] doReconnect [%d]", g.id, player.id)
+			log.Println("重新连接",g.id, player.id)
 		} else {
-			l4g.Error("[game(%d)] ID_MSG_Ready player[%d] state error:[%d]", g.id, player.id, g.State)
+			//l4g.Error("[game(%d)] ID_MSG_Ready player[%d] state error:[%d]", g.id, player.id, g.State)
+			log.Println("状态连接错误",g.id, player.id, g.State)
 		}
 
 	case pb.ID_MSG_Input:
@@ -243,13 +246,15 @@ func (g *Game) Tick(now int64) bool {
 	case k_Gaming:
 		if g.checkOver() {
 			g.State = k_Over
-			l4g.Info("[game(%d)] game over successfully!!", g.id)
+			// 	l4g.Info("[game(%d)] game over successfully!!", g.id)
+			log.Println("游戏成功结束", g.id)
 			return true
 		}
 
 		if g.isTimeout() {
 			g.State = k_Over
-			l4g.Warn("[game(%d)] game timeout", g.id)
+			// l4g.Warn("[game(%d)] game timeout", g.id)
+			log.Println("游戏超时", g.id)
 			return true
 		}
 
@@ -260,7 +265,8 @@ func (g *Game) Tick(now int64) bool {
 	case k_Over:
 		g.doGameOver()
 		g.State = k_Stop
-		l4g.Info("[game(%d)] do game over", g.id)
+		// 		l4g.Info("[game(%d)] do game over", g.id)
+		log.Println("结束比赛", g.id	)
 		return true
 	case k_Stop:
 		return false

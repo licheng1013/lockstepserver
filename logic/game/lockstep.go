@@ -40,6 +40,7 @@ func (l *lockstep) getFrameCount() uint32 {
 	return l.frameCount
 }
 
+// pushCmd 将操作放入帧中,一帧只能放一次
 func (l *lockstep) pushCmd(cmd *pb.InputData) bool {
 	f, ok := l.frames[l.frameCount]
 	if !ok {
@@ -47,7 +48,7 @@ func (l *lockstep) pushCmd(cmd *pb.InputData) bool {
 		l.frames[l.frameCount] = f
 	}
 
-	// 检查是否同一帧发来两次操作
+	// 检查是否同一帧发来两次操作, 有则不处理
 	for _, v := range f.cmds {
 		if v.Id == cmd.Id {
 			return false
@@ -59,6 +60,7 @@ func (l *lockstep) pushCmd(cmd *pb.InputData) bool {
 	return true
 }
 
+// tick 帧计数器
 func (l *lockstep) tick() uint32 {
 	l.frameCount++
 	return l.frameCount

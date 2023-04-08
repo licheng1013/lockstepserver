@@ -131,11 +131,11 @@ func (g *Game) ProcessMsg(id uint64, msg *pb_packet.Packet) {
 	player, ok := g.players[id]
 	if !ok {
 		//l4g.Error("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
-		log.Println("玩家不在游戏中",g.id, player.id, msg.GetMessageID())
+		log.Println("玩家不在游戏中", g.id, player.id, msg.GetMessageID())
 		return
 	}
 	//l4g.Info("[game(%d)] processMsg player[%d] msg=[%d]", g.id, player.id, msg.GetMessageID())
-	log.Println("处理玩家消息",g.id, player.id, msg.GetMessageID())
+	log.Println("处理玩家消息", g.id, player.id, msg.GetMessageID())
 	msgID := pb.ID(msg.GetMessageID())
 
 	switch msgID {
@@ -183,20 +183,22 @@ func (g *Game) ProcessMsg(id uint64, msg *pb_packet.Packet) {
 			// 重连进来 TODO 对重连进行检查，重连比较耗费
 			g.doReconnect(player)
 			//l4g.Warn("[game(%d)] doReconnect [%d]", g.id, player.id)
-			log.Println("重新连接",g.id, player.id)
+			log.Println("重新连接", g.id, player.id)
 		} else {
 			//l4g.Error("[game(%d)] ID_MSG_Ready player[%d] state error:[%d]", g.id, player.id, g.State)
-			log.Println("状态连接错误",g.id, player.id, g.State)
+			log.Println("状态连接错误", g.id, player.id, g.State)
 		}
 
 	case pb.ID_MSG_Input:
 		m := &pb.C2S_InputMsg{}
 		if err := msg.Unmarshal(m); nil != err {
-			l4g.Error("[game(%d)] processMsg player[%d] msg=[%d] UnmarshalPB error:[%s]", g.id, player.id, msg.GetMessageID(), err.Error())
+			//l4g.Error("[game(%d)] processMsg player[%d] msg=[%d] UnmarshalPB error:[%s]", g.id, player.id, msg.GetMessageID(), err.Error())
+			log.Println("解析消息错误", g.id, player.id, msg.GetMessageID(), err.Error())
 			return
 		}
-		if !g.pushInput(player, m) {
-			l4g.Warn("[game(%d)] processMsg player[%d] msg=[%d] pushInput failed", g.id, player.id, msg.GetMessageID())
+		if !g.pushInput(player, m) { // 同一帧不允许重复推送帧数据,否则提示打印消息
+			//l4g.Warn("[game(%d)] processMsg player[%d] msg=[%d] pushInput failed", g.id, player.id, msg.GetMessageID())
+			log.Println("推送消息失败", g.id, player.id, msg.GetMessageID())
 			break
 		}
 
@@ -258,7 +260,9 @@ func (g *Game) Tick(now int64) bool {
 			return true
 		}
 
+		// 增加帧数
 		g.logic.tick()
+		// 广播帧数据
 		g.broadcastFrameData()
 
 		return true
@@ -266,7 +270,7 @@ func (g *Game) Tick(now int64) bool {
 		g.doGameOver()
 		g.State = k_Stop
 		// 		l4g.Info("[game(%d)] do game over", g.id)
-		log.Println("结束比赛", g.id	)
+		log.Println("结束比赛", g.id)
 		return true
 	case k_Stop:
 		return false
@@ -350,7 +354,7 @@ func (g *Game) pushInput(p *Player, msg *pb.C2S_InputMsg) bool {
 		Y:          proto.Int32(msg.GetY()),
 		Roomseatid: proto.Int32(p.idx),
 	}
-
+	// 存放数据
 	return g.logic.pushCmd(cmd)
 }
 
@@ -398,13 +402,15 @@ func (g *Game) doReconnect(p *Player) {
 func (g *Game) broadcastFrameData() {
 
 	framesCount := g.logic.getFrameCount()
-
+	// 未到广播帧数, 总帧数-客户端帧数 < 广播帧数, 则不广播
 	if !g.dirty && framesCount-g.clientFrameCount < BroadcastOffsetFrames {
 		return
 	}
 
 	defer func() {
+		// 可以广播
 		g.dirty = false
+		// 设置客户端帧数
 		g.clientFrameCount = framesCount
 	}()
 
@@ -444,7 +450,7 @@ func (g *Game) broadcastFrameData() {
 			continue
 		}
 
-		// 网络不好的
+		// 网络不好的, 现在时间-上次心跳时间 >= 2秒 则认为网络不好, 不广播
 		if now-p.GetLastHeartbeatTime() >= kBadNetworkThreshold {
 			continue
 		}
